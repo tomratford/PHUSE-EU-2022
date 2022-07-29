@@ -1,0 +1,9 @@
+*.tex
+*.pdf
+*.docx
+*.log
+*.aux
+.Rhistory
+.Rproj.user/
+_*/
+

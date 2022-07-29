@@ -1,0 +1,450 @@
+---
+title: 'Functional Programming: What, why and how?'
+author: "Tom Ratford"
+date: "`r Sys.Date()`"
+output:
+  beamer_presentation:
+    keep_tex: true
+    slide_level: 4
+    df_print: kable
+    theme: "veramed"
+    latex_engine: xelatex
+    includes:
+      in_header: beamer_opts.tex
+  pdf_document:
+    keep_tex: true
+    df_print: kable
+    latex_engine: pdflatex
+sansfont: "Arial"    
+classoption: "aspectratio=169"
+header-includes:
+  - \usepackage{minted}
+  - \usemintedstyle{tango}
+  - \widowpenalties 1 150
+bibliography: references.bib
+nocite: '@*'
+knit: (function(input, ...) {
+    rmarkdown::render(
+      input,
+      output_format = c("pdf_document","beamer_presentation"),
+      output_file = c("article.pdf","pres.pdf"),
+      output_options = list(),
+      envir = new.env()
+    )
+  })
+---
+<!-- custom knit function renders both beamer and latex pdf-->  
+    
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+## Custom SAS highlighting with minted
+knitr::knit_engines$set(sas = function(options) {
+  code <- paste("\\begin{minted}[bgcolor=shadecolor]{sas}",
+                paste(options$code, collapse = "\n"),
+                "\\end{minted}",
+                sep="\n")
+})
+
+### Check compilation type ###
+out_type <- knitr::opts_knit$get("rmarkdown.pandoc.to")
+if.latex <- out_type=="latex"
+if.beamer <- out_type=="beamer"
+## our possible versions:
+## latex
+## beamer
+knitr::opts_chunk$set(tidy=if.beamer, tidy.opts=list(width.cutoff=60))
+library(tidyverse)
+```
+
+```{block include=if.latex}
+## Introduction
+
+As we move towards a multilingual world, tried and tested SAS problem solving skills will be exposed to new data structures.
+As programmers we must learn new ways to think about problems. One of the paradigms available is functional programming, a style grounded in mathematics and reproducibility.
+It is available in R, Python and Julia (to name a few) and can be used to write efficient, clean and safe code.
+In this paper I will explore what makes a programming language functional, why we should use these new features and how you can practically apply them to common ADaM dataset and TFL programming problems in R.
+```
+
+## Imperative programming {.allowframebreaks}
+
+
+```{block include=if.latex}
+To understand functional programming we must first define imperative programming.
+This is the style of programming which we are used to as SAS programmers.
+```
+`r if (if.beamer) "-"` Imperative programming focuses on the concept of 'state'. 
+`r if (if.beamer) "-"` A change of state caused by code is known as a _side effect_.
+`r if (if.beamer) "\n"` Consider a simple SAS program.
+```{sas}
+data mydata;
+  set olddata;
+  a=1;
+run;
+```
+
+```{block include=if.latex}
+In the above example we have changed the state of the work library to include our new `mydata` dataset.
+```
+The _side effect_ of `data` is the creation of `mydata`.
+```{block include=if.latex}
+`set` does not have a side effect, it simply returns `olddata`.
+In the `mydata` dataset we changed the state of `a`, as a side effect of the line `a=1;`.
+```
+
+`r if (if.beamer) "\\framebreak"`
+
+`r if (if.beamer) "-"` State is a very important aspect of programming imperatively.
+`r if (if.beamer) "-"` We enforce rules and guidelines to ensure that our side effects follow a logical pattern of execution.
+`r if (if.beamer) "\n"` For example: ensuring programs can run 'in batch' from start to finish without errors.
+Consider the below.
+```{sas}
+proc sort data=olddata; 
+  by ordvar; 
+run;
+```
+This is generally considered bad programming practice as we change the state of `olddata` without adding an additional dataset for traceability.
+
+## Functional programming
+
+`r if (if.latex) "Conversely, f" else "- F"`unctional programming rejects the idea of state and instead focuses on input and output.
+```{block include=if.latex}
+In pure functional programming languages, we cannot access anything without it being passed to a function.
+System information such as the time or date cannot be accessed as these are constantly changing states.
+Hence it is commonly said that a pure functional programming language is useless, so we generally accept a looser definition.
+```
+`r if (if.beamer) "-"` A language is considered functional if it directs or forces you to create a solution that does not rely on state.
+
+Lets say we want to apply some function $g$, followed by another function $f$, on our data denoted $x$.
+In functional programming this is represented as composing $f$ and $g$ together.
+$$
+f \circ g(x) = f(g(x))
+$$
+You may recognise this as mathematics. 
+```{block include=if.latex}
+As mentioned earlier a purely functional language is not completely practical.
+R, Python and Julia are not purely functional languages, but are instead considered multi-paradigm languages.
+This is because they do not force you down a particular style of programming, yet they do contain crucial elements to allow us to program functionally.
+```
+
+### First class functions
+`r if (if.beamer) "-"` A first class function essentially means that a function can be considered as a value like `1` or `"Hello"`.
+`r if (if.beamer) "\n#### \\texttt{nchar} Example: Definitions {.allowframebreaks}"` 
+Consider the `nchar` function in R, that returns the length of a string.
+```{r}
+nchar
+```
+`r if (if.beamer) "\\framebreak"`
+```{r}
+strlength <- nchar
+strlength
+```
+Notice that `strlength` and `nchar` have the same definition.
+`r if (if.beamer) "\n#### \\texttt{nchar} Example: Output"`
+```{r}
+nchar("Hello")
+strlength("Hello")
+```
+`r if (if.beamer) "\n#### First class functions: Definitions"`
+First class functions in R also make sense when you consider the definition of a function in R.
+Which involves the assignment operator `<-`.
+```{r}
+myFunc <- function(...) {
+  ...
+}
+```
+First class functions are a must in functional programming.
+`r if (if.latex) "This is because they lead into another concept known as _higher-order functions_."`
+
+### Higher order function
+A higher order function is a function which does at least one of the following:
+
+ * Takes a function as an argument
+ * Returns a function as its result
+ 
+`r if (if.latex) "This is a confusing concept, but you've probably already used and encountered this without realising."`
+
+#### A function that takes a function as an argument {.allowframebreaks}
+
+```{block, include=if.latex}
+Lets consider a case where we want to be able to subset a large vector of numbers (1 to 2000), based off whether the number is a _narcissistic number_.
+```
+A narcissistic (or Armstrong) number is a number $b$ in which the number is equal to the sum of its own digits raised to the power of the number of digits.
+For example.
+$$
+\begin{aligned}
+  153 &= 1^3 + 5^3 + 3^3\\
+  370 &= 3^3 + 7^3 + 0^3\\
+  371 &= 3^3 + 7^3 + 1^3\\
+  &...\\
+  1643 &= 1^4 + 6^4 + 4^4 + 3^4
+\end{aligned}
+$$
+```{block include=if.latex}
+This problem could be done using some subsetting like `x[as.character(nchar(....))]` but it would very quickly get messy, we could also make multiple variables to do this imperatively.
+But we are doing functional programming, so lets make a function that first works out if a number is an narcissistic number.
+```
+`r if (if.beamer) "\\framebreak"`
+```{r}
+is.narc <- function(x) { #x a number
+  x_char <- as.character(x)
+  nums <- strsplit(x_char, split="")[[1]]
+  x == sum(as.numeric(nums)^length(nums))
+}
+```
+`r if (if.latex) "We can quickly check it catches what we expect"`
+```{r}
+is.narc(153)
+is.narc(154)
+```
+`r if (if.beamer) "\\framebreak"`
+Unfortunately, this function only works on a single value, so we need a function which can check over a whole vector and keep only what we want.
+```{r tidy=if.beamer, tidy.opts=list(width.cutoff=50)}
+myFilter <- function(v, f) { # v a vector, f a function which returns a boolean
+  w <- rep(NA, length(v))
+  for (i in seq_along(v)) {
+    if (f(v[i])) {
+      w[i] <- v[i]
+    }
+  }
+  w[!is.na(w)]
+}
+```
+The function `f` which returns a boolean is known as a _predicate_.
+`r if (if.beamer) "\\framebreak"`
+`r if (if.latex) "We can now find all narcissistic numbers up to 2000."`
+```{r}
+myFilter(1:2000,is.narc)
+```
+This is very similar to when you use a `filter` or `subset` command. 
+They just provide an easier syntax to perform these operations.
+
+#### A function that returns a function as its result
+`r if (if.latex) "We can also write a function which can return a function which we can then call."`
+Consider $f \circ g(x)$ mentioned earlier, we can create a function which returns this composition as a single function.
+```{r tidy=if.beamer, tidy.opts=list(width.cutoff=50)}
+compose <- function(f,g) { # f & g both functions
+  function(x) f(g(x))
+}
+r <- compose(sin, cos)
+print(r(.5))
+```
+Note in the `compose` function we did not specify a name for our returned function.
+
+### Anonymous functions
+`r if (if.beamer) "-"` An anonymous function is a function definition that is not bound to any identifier.
+`r if (if.beamer) "-"` Anonymous functions are also known as _lambdas_ (especially in Python) and _closures_.
+`r if (if.beamer) "\n"`Consider our `myFilter` function from earlier.
+We can provide a function without defining it previously.
+```{r}
+myFilter(1:20, function(x) x %% 3 == 0)
+```
+Or equivalently in R 4.1 or newer.
+```{r, eval=FALSE}
+myFilter(1:20, \(x) x %% 3 == 0)
+```
+
+## Benefits over imperative programming
+Functional programming prioritises immutability. 
+This also implies reproducability, as in theory providing the same arguments (which are not modified by the function) to a function will always return the same value.
+
+## Applications in R
+
+### Base R vs the Tidyverse [`purrr`] {.allowframebreaks}
+
+`r if (if.beamer) "-"` A crucial elements of functional programming is the concept of a _map_ function.
+`r if (if.beamer) "-"` This is a function which performs a function over a list of inputs.
+`r if (if.beamer) "\n\\framebreak\n"`In base R this is the `lapply`, `sapply` or `vapply` function.
+```{r}
+lapply(1:3, function(x) x + 1) 
+```
+```{block, include=if.latex}
+`vapply` is an interesting function as we have to provide a parameter `FUN.VALUE` of the type we wish to return.
+It will then throw an error if this type is not returned, meaning we can write more defensive code using it.
+```
+For mapping over a data frame base R has `apply`, and for mapping over multiple inputs we have `mapply`.
+`r if (if.beamer) "\n\\framebreak\n"`
+`r if (if.beamer) "-"` The tidyverse equivalent is the `purrr` R package.
+`r if (if.beamer) "-"` This package's aim is to improve R's functional programming tools by providing a more consistent and expansive set of tools.
+`r if (if.beamer) "-"` Base R `lapply`/`vapply` is rewritten as `purrr::map`.
+`r if (if.beamer) "-"` Anonymous functions can also be written using a simplified syntax.
+`r if (if.latex) "It uses \x60~\x60 to represent the start of a function."`
+`r if (if.beamer) "\n\\framebreak\n"`
+```{r}
+map(1:3, ~ . + 1)
+```
+Instead of specifying parameters yourself, they have been defined for you: 
+ 
+ * `.` to represent a single input.
+ * `.x` and `.y` to represent 2 inputs.
+ * `..1`,`..2`,... to represent more inputs.
+
+```{block include=if.latex}
+`map` also has the same ability as `vapply` to return a vector of a desired type using alternative functions `map_chr`, `map_dbl` or similar. 
+
+Performance wise, base R's `lapply` & equivalent are faster than `map` but `purrr` is more consistent.
+One such feature of `purrr` is that `map(list, <n>)` returns the `n`^th^ element from the input list.
+in base R this would be done with `lapply(list, function(x) x[[2]])`.
+This is useful when combined with pipes, where using the `[ ]` or `$` operators would be more problematic.
+
+Consider getting the max of means of some randomly sampled data.
+```
+```{r include=if.latex}
+x <- list(rnorm(20),rnorm(20),rnorm(20)) %>%
+  map(summary) %>%
+  map("Mean") %>%
+  as.vector %>%
+  map(max) %>%
+  print
+```
+
+#### Mapping over multiple inputs {.allowframebreaks}
+
+`purrr::map2` takes two different input parameters and a function that takes 2 arguments.
+```{r}
+counts <- sample(1:100, 3)
+percent <- rnorm(3, mean=0.5, sd=0.1) 
+map2(counts, percent, ~ paste0(.x, " (", round(.y * 100, digits=1), "%)"))
+```
+`r if (if.beamer) "\\framebreak"`
+In base R we have `mapply`, which first takes a function and then it's inputs.
+```{r}
+mapply(function(x,y) paste0(x, " (", round(y * 100, digits=1), "%)"), counts, percent)
+```
+Both `purrr` and base R have their pros and cons, and it is entirely personal preference which you prefer.
+
+### Rounding in an ADLB table {.allowframebreaks}
+
+Consider an example of a possible ADLB dataset. (Only the first six rows are shown)
+```{r, echo=FALSE}
+PARAMCDs <- c("LB00283","LB00192","LB00185")
+PARCATs <- c("LB00283" = "Cat 1", "LB00192" = "Cat 1", "LB00185" = "Cat 2")
+means <- sample.int(10,3)
+p_dps <- sample.int(6,3)
+names(means) <- PARAMCDs
+names(p_dps) <- PARAMCDs
+ADLB <- tibble(USUBJID=paste0("101001-",sample(c("101","102","110","115"),200,replace = TRUE),sample(c("101","103","104","105"),200,replace = TRUE)),
+               PARAMCD=sample(PARAMCDs,200,replace = TRUE),
+               PARCAT=PARCATs[PARAMCD]) %>%
+  rowwise %>%
+  mutate(
+    AVAL = round(abs(rnorm(1,means[PARAMCD])), digits = as.integer(rnorm(1,p_dps[PARAMCD],3))),
+    AVALC = as.character(AVAL)
+  ) %>%
+  arrange(USUBJID,PARAMCD) %>%
+  group_by(USUBJID,PARAMCD) %>%
+  mutate(
+    AVISIT=paste0("Day ",1:n()),
+  ) %>%
+  ungroup
+head(ADLB)
+```
+
+`r if (if.beamer) "-"` In this scenario we want to correctly work out how many decimal places we should be displaying per `PARAMCD` in our output table.
+`r if (if.beamer) "-"` In this case we are going to display to the mean number of decimal places.
+`r if (if.beamer) "\n\\framebreak\n"`
+The general method for this in SAS is to create a separate dataset to calculate the values, and then merge a new variable onto the existing dataset and round using this new variable.
+
+In R we can create a higher order function. Which takes the input of our grouped data `PARAMCD` and returns a function that rounds our values to the correct DP.
+`r if (if.beamer) "\\framebreak"`
+```{r, include=if.latex}
+round_by_paramcd <- function(group) {
+  # Calculate the number of DPS:
+  # Get all vales after & incl. the decimal point (minus 1 for the decimal place itself)
+  str_ext <- nchar(str_extract(group, "\\..*")) - 1
+  # Replace NA values (no decimal) with zeros
+  str_ext[is.na(str_ext)] <- 0
+  # Work out the mean and round to nearest values
+  dps <- round(mean(str_ext), 0)
+  
+  # Our anonymous function to round to the correct DP
+  function(x) {
+    round(x, digits = dps) %>%
+      format(., nsmall = dps) #ensure the correct number of DPS are shown
+  }
+}
+```
+```{r, eval=FALSE, include=if.beamer}
+round_by_paramcd <- function(group) {
+  str_ext <- nchar(str_extract(group, "\\..*")) - 1
+  str_ext[is.na(str_ext)] <- 0
+  dps <- round(mean(str_ext), 0)
+  
+  function(x) {
+    round(x, digits = dps) %>%
+      format(., nsmall = dps)
+  }
+}
+```
+`r if (if.beamer) "\\framebreak"`
+`r if (if.latex) "We can then call our function with \x60AVALC\x60 being used to call our function, and then calling the returning function with our mean value of \x60AVAL\x60"`
+```{r}
+ADLB %>%
+  group_by(PARAMCD) %>%
+  summarise(mean = round_by_paramcd(AVALC)(mean(AVAL)))
+```
+`r if (if.beamer) "\\framebreak"`
+We can verify this has rounded as we expect with the following.
+`r if (if.beamer) "\n"`Bear in mind that R rounds half to even as per the IEEE 754 standard.
+```{r, tidy=FALSE}
+ADLB %>%
+  group_by(PARAMCD) %>%
+  mutate(dps=nchar(str_extract(AVALC, "\\..*")) - 1,
+         dps=if_else(is.na(dps), 0, dps)) %>%
+  summarise(mean(dps), round(mean(dps)))
+```
+`r if (if.beamer) "\\framebreak"`
+An additional benefit of the function is that we can adjust it to any grouping we desire without any further changes to the function.
+```{r}
+ADLB %>%
+  group_by(PARCAT) %>%
+  summarise(mean = round_by_paramcd(AVALC)(mean(AVAL))) #Apply our function
+```
+```{block include=if.latex}
+We have abstracted the problem to a simple solution which can be reused and transferred between projects.
+```
+
+### Apply attributes to columns in a data frame {.allowframebreaks}
+
+`walk` is a unique function in the `purrr` package with no equivalent in base R.
+`walk` is like `map` but the input is returned unchanged. An example of this is the following
+```{r}
+x <- 1:5
+walk(x, ~ . + 1) %>% print 
+map_dbl(x, ~ . + 1) %>% print
+```
+`r if (if.beamer) "\\framebreak"`
+However, the _side effects_ of the function can still occur. 
+Consider a different example, using the global assignment operator `<<-`.
+```{r}
+walk(x, function(x) { attr(x, "PHUSE") <<- "Hi EU Connect!" })
+attributes(x)
+```
+`r if (if.latex) "We can use the above to add labels to our datasets, such as the ADLB dataset from before."`
+```{r, eval=TRUE, results="hide", tidy=FALSE}
+labels <- c(USUBJID="Unique Subject Identifier",
+            PARAMCD="Parameter Code",
+            PARCAT="Parameter Category",
+            AVAL="Value",
+            AVALC="Value (Character)",
+            AVISIT="Analysis Visit")
+
+walk2(names(labels), 
+      labels, 
+      function(x,y) { attr(ADLB[[x]], "label") <<- y })
+head(ADLB)
+```
+`r if (if.beamer) "\\framebreak"`
+```{r echo=FALSE}
+knitr::kable(head(ADLB),
+             col.names=vapply(colnames(ADLB), 
+                              \(x) paste0(x, 
+                                          "\\newline {\\scriptsize ", 
+                                          attr(ADLB[[x]], "label"), "}"), 
+                              FUN.VALUE = character(1)))
+# Hello!, you've stumbled onto my formatting code.
+# I actually render the labels manually (but I do use `vapply` to do it!) using the labels in the data. 
+# You can use View(ADLB) in RStudio, this will also render the labels to verify this is correct.
+```
+
+## References

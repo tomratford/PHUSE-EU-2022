@@ -1,0 +1,118 @@
+---
+title: "SAS highlighting in Rmarkdown to PDF exporting"
+author: "Tom Ratford"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Requirements
+
+1. MikTex (or some equivalent)
+2. A python environment (with Pygments installed via `pip install Pygments`)
+
+Ensure both of these are setup and run as expected in RStudio.
+
+## Pandoc
+
+R convert `.Rmd` script to HTML/TeX via a program called `Pandoc`.
+`Pandoc`'s syntax highlighter of choice does not support SAS.
+There are a few articles on how to get SAS highlighting in R markdown files being knitted to HTML.
+
+ * [R markdown syntax highlighting](https://www.calex.org/blog/r-markdown-syntax-highlighting/)
+ * [Highlighting SAS chunks in rmarkdown](https://www.atorusresearch.com/highlighting-sas-chunks-in-rmarkdown/)
+
+However these all require external javascript packages to run in HTML, and are not suitable with the TeX PDF output.
+
+We could use the `highr` package with another external program called [highlight](http://www.andre-simon.de/doku/highlight/en/highlight.php).
+This program can then be called to generate SAS code in LaTeX format.  
+```{r, eval=FALSE}
+highr::hi_andre(code = ..., 
+                language = "sas",
+                format = "latex")
+```
+We can then create a `knitr` engine (like we do in this document)
+
+## Minted
+
+`minted` is a LaTeX package which highlights code using a python lexer.
+You can find a simple guide on [overleaf](https://www.overleaf.com/learn/latex/Code_Highlighting_with_minted#One-line_code), and the full documentation [here](https://texdoc.org/serve/minted.pdf/0)
+We will use this to create a simple `knitr` engine to produce our highlighted SAS code.
+
+## Project Setup
+
+Optionally, ensure you are in a R project in RStudio, and create a `.Rprofile` file.
+We have to change the arguments passed to the LaTeX engine to use shell escapes (as `minted` requires this).
+We need the following R code to run:
+```{r, eval=FALSE}
+options(tinytex.engine_args="-shell-escape")
+```
+In every session. You can achieve this by either:
+ * Putting this into your `.Rprofile` file
+ * Running this every session
+
+In your R markdown header put the following
+```{r, eval=FALSE}
+---
+title: 'My Doc'
+author: "Tom Ratford"
+date: "`r Sys.Date()`"
+output: pdf_document
+header-includes:
+  - \usepackage{minted}
+  - \usemintedstyle{tango}
+---
+```
+
+## Knitr engine
+
+In your R setup put the following
+```{r, eval=FALSE}
+knitr::knit_engines$set(sas = function(options) {
+  code <- paste("\\begin{minted}[bgcolor=shadecolor]{sas}",
+                paste(options$code, collapse = "\n"),
+                "\\end{minted}",
+                sep="\n")
+})
+```
+
+you will now be able to write the following to get highlighted SAS code in your pdf output.
+```{}
+\```{sas}
+ put sas code here
+\```
+```
+
+## Alterative header options
+
+If you have many options and packages you wish to run, I recommend using this format.
+```{r, eval=FALSE}
+---
+title: 'mydoc'
+author: "Tom Ratford"
+date: "`r Sys.Date()`"
+output: 
+  pdf_document:
+    extra_dependencies: ["minted", ...]
+    includes:
+      in_header : preamble.tex
+      before_body: doc-prefix.tex
+      after_body: doc-suffix.tex
+---
+```
+If you have other LaTeX packages you wish to use, put them in the `...` box, else delete this section.
+The `.tex` files must be in the the project root directory. 
+
+## Themes
+There are many [themes supported in .Rmd blocks](https://bookdown.org/yihui/rmarkdown/html-document.html#appearance-and-style) as well as in [minted blocks](https://www.overleaf.com/learn/latex/Code_Highlighting_with_minted#Reference_guide). 
+However there is little overlap. 
+The overlap (I have found) is:
+
+ * BOTH = tango
+ * Minted = default, .Rmd = pygments
+ * Minted = Xcode, .Rmd = textmate
+ 
+`minted` also supports a sas theme to make the code look like it does in the SAS program editor.
