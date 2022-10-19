@@ -1,7 +1,7 @@
 ---
 title: 'Functional Programming: What, why and how?'
-author: "Tom Ratford"
-date: "`r Sys.Date()`"
+author: "Tom Ratford - Veramed"
+date: "PHUSE EU Connect 2022"
 output:
   beamer_presentation:
     keep_tex: true
@@ -19,6 +19,7 @@ sansfont: "Arial"
 classoption: "aspectratio=169"
 header-includes:
   - \usepackage{minted}
+  - \usepackage{csquotes}
   - \usemintedstyle{tango}
   - \widowpenalties 1 150
 bibliography: references.bib
@@ -55,6 +56,7 @@ if.beamer <- out_type=="beamer"
 ## beamer
 knitr::opts_chunk$set(tidy=if.beamer, tidy.opts=list(width.cutoff=60))
 library(tidyverse)
+set.seed(1208712783)
 ```
 
 ```{block include=if.latex}
@@ -62,7 +64,7 @@ library(tidyverse)
 
 As we move towards a multilingual world, tried and tested SAS problem solving skills will be exposed to new data structures.
 As programmers we must learn new ways to think about problems. One of the paradigms available is functional programming, a style grounded in mathematics and reproducibility.
-It is available in R, Python and Julia (to name a few) and can be used to write efficient, clean and safe code.
+It is a style of programming that is possible in R, Python and Julia (to name a few) and directs programmers to write efficient, clean and reproducible code by design.
 In this paper I will explore what makes a programming language functional, why we should use these new features and how you can practically apply them to common ADaM dataset and TFL programming problems in R.
 ```
 
@@ -113,7 +115,7 @@ In pure functional programming languages, we cannot access anything without it b
 System information such as the time or date cannot be accessed as these are constantly changing states.
 Hence it is commonly said that a pure functional programming language is useless, so we generally accept a looser definition.
 ```
-`r if (if.beamer) "-"` A language is considered functional if it directs or forces you to create a solution that does not rely on state.
+`r if (if.beamer) "-" else "\\begin{displayquote}"` A language is considered functional if it directs or forces you to create a solution that does not rely on state. `r if (if.latex) "\\end{displayquote}"`
 
 Lets say we want to apply some function $g$, followed by another function $f$, on our data denoted $x$.
 In functional programming this is represented as composing $f$ and $g$ together.
@@ -162,7 +164,11 @@ A higher order function is a function which does at least one of the following:
  * Takes a function as an argument
  * Returns a function as its result
  
-`r if (if.latex) "This is a confusing concept, but you've probably already used and encountered this without realising."`
+```{block, include=if.latex}
+This is a confusing concept, but you've probably already used and encountered this without realising.
+When using packages such as `dplyr`, you have likely used the `filter` function.
+This is a functional programming staple, which we will implement ourselves in the next section
+```
 
 #### A function that takes a function as an argument {.allowframebreaks}
 
@@ -181,7 +187,8 @@ $$
 \end{aligned}
 $$
 ```{block include=if.latex}
-This problem could be done using some subsetting like `x[as.character(nchar(....))]` but it would very quickly get messy, we could also make multiple variables to do this imperatively.
+This problem could be done using some subsetting like `x[as.character(nchar(....))]` but it would very quickly get messy.
+We could also make multiple variables to do this imperatively.
 But we are doing functional programming, so lets make a function that first works out if a number is an narcissistic number.
 ```
 `r if (if.beamer) "\\framebreak"`
@@ -232,15 +239,20 @@ print(r(.5))
 Note in the `compose` function we did not specify a name for our returned function.
 
 ### Anonymous functions
-`r if (if.beamer) "-"` An anonymous function is a function definition that is not bound to any identifier.
-`r if (if.beamer) "-"` Anonymous functions are also known as _lambdas_ (especially in Python) and _closures_.
+`r if (if.beamer) "-"` An anonymous function is a function definition that is not bound to any identifier (i.e. we don't save it to an object).
+`r if (if.beamer) "-"` Anonymous functions are also commonly referred to as _lambdas_ (especially in Python) and sometimes _closures_.
+```{block, include=if.latex}
+Technically closures are different to anonymous functions, as closures also capture the state of their surrounding environment. 
+As - within R - everything is bounded by an environment, it is fair to say that all functions are closures (there are exceptions). 
+However, in general the term 'closure' will be used to indicate that this is a function within a function.
+```
 `r if (if.beamer) "\n"`Consider our `myFilter` function from earlier.
 We can provide a function without defining it previously.
 ```{r}
 myFilter(1:20, function(x) x %% 3 == 0)
 ```
 Or equivalently in R 4.1 or newer.
-```{r, eval=FALSE}
+```{r, eval=FALSE, tidy=FALSE}
 myFilter(1:20, \(x) x %% 3 == 0)
 ```
 
